@@ -137,7 +137,7 @@ int main (int argc, char **argv) {
     int status;
 
     char
-      *summary  = "done",
+      *summary  = "unknown",
       ubs [50] = "inf";
 
     CPXgetobjval     (env, mip, &ub);
@@ -152,7 +152,8 @@ int main (int argc, char **argv) {
 	    addcuts,
 	    *filenames,
 	    CPXgetnumcols (env, mip),
-	    CPXgetnumint  (env, mip),
+	    CPXgetnumint  (env, mip) +
+	    CPXgetnumbin  (env, mip),
 	    CPXgetnumrows (env, mip),
 	    usage.ru_utime.tv_sec + (double) usage.ru_utime.tv_usec * 1.e-6,
 	    lb,
@@ -174,14 +175,15 @@ int main (int argc, char **argv) {
 
     switch (status) {
 
-    case CPX_STAT_OPTIMAL:                                break;
-    case CPX_STAT_INFEASIBLE:     summary = "infeasible"; break;
-    case CPX_STAT_UNBOUNDED:      summary = "unbounded";  break;
-    case CPX_STAT_ABORT_TIME_LIM: summary = "timelimit";  break;
-    default:                                              break;
+    case CPXMIP_OPTIMAL:         summary = "done";       break;
+    case CPXMIP_INFEASIBLE:      summary = "infeasible"; break;
+    case CPXMIP_UNBOUNDED:       summary = "unbounded";  break;
+    case CPXMIP_TIME_LIM_FEAS:
+    case CPXMIP_TIME_LIM_INFEAS: summary = "timelimit";  break;
+    default:                                             break;
     }
 
-    printf ("%s %s\n",summary,ubs);
+    printf ("%s,%s\n",summary,ubs);
   }
 
   if (mip != NULL) status = CPXfreeprob    (env, &mip);
