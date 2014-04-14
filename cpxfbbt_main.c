@@ -7,6 +7,9 @@
 #include <math.h>
 
 #include <time.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
 #include "cplex.h"
 #include "cmdline.h"
 
@@ -124,7 +127,62 @@ int main (int argc, char **argv) {
       printf ("Could not retrieve solution");
   }
 
-  fixpointfbbt (env, NULL, 0, NULL, NULL);
+  // print first part of the output line
+
+  {
+    struct rusage usage;
+
+    double lb, ub;
+
+    int status;
+
+    char
+      *summary  = "done",
+      ubs [50] = "inf";
+
+    CPXgetobjval     (env, mip, &ub);
+    CPXgetbestobjval (env, mip, &lb);
+
+    if (getrusage (RUSAGE_SELF, &usage)) {
+      fprintf (stderr, "Error: can't run getrusage\n");
+      exit (-1);
+    }
+
+    printf ("root,0.%d,%s,%d,%d,%d,-1,-1,-1,-1,%g,-1,%g,%g,%d,-1,-1,-1,-1,-1,-1,-1,", 
+	    addcuts,
+	    *filenames,
+	    CPXgetnumcols (env, mip),
+	    CPXgetnumint  (env, mip),
+	    CPXgetnumrows (env, mip),
+	    usage.ru_utime.tv_sec + (double) usage.ru_utime.tv_usec * 1.e-6,
+	    lb,
+	    ub,
+	    CPXgetnodecnt (env, mip));
+
+    // print second part
+
+    fixpointfbbt (env, NULL, 0, NULL, NULL);
+
+    // print final two strings
+
+    CPXgetobjval (env, mip, &ub);
+
+    if (ub < 1e19)
+      sprintf (ubs, "%g", ub);
+
+    status = CPXgetstat (env, mip);
+
+    switch (status) {
+
+    case CPX_STAT_OPTIMAL:                                break;
+    case CPX_STAT_INFEASIBLE:     summary = "infeasible"; break;
+    case CPX_STAT_UNBOUNDED:      summary = "unbounded";  break;
+    case CPX_STAT_ABORT_TIME_LIM: summary = "timelimit";  break;
+    default:                                              break;
+    }
+
+    printf ("%s %s\n",summary,ubs);
+  }
 
   if (mip != NULL) status = CPXfreeprob    (env, &mip);
   if (env != NULL) status = CPXcloseCPLEX (&env);

@@ -74,9 +74,9 @@ int fixpointfbbt (CPXCENVptr env,
   static char firstCall_ = true;
 
   static int  
-    nRuns_ = 0,
-    nTiL_  = 0,
-    nTiU_  = 0;
+    nRuns_ = 0, // number of calls 
+    nTiL_  = 0, // number of tightened lower bounds
+    nTiU_  = 0; //                     upper
 
   static double cpuTime_ = 0.;
 
@@ -86,11 +86,12 @@ int fixpointfbbt (CPXCENVptr env,
     time0 = (double) tv. tv_sec + (double) tv. tv_usec / 1e6;
   }
 
-  if ((cbdata == NULL) &&
-      (cbhandle == NULL) &&
-      (useraction_p == NULL)) {
+  if ((NULL == cbdata)   &&
+      (NULL == cbhandle) &&
+      (NULL == useraction_p)) {
 
-    printf ("ran %d times, tightened %d lower and %d upper bounds, sep time: %g\n", nRuns_, nTiL_, nTiU_, cpuTime_);
+    //printf ("ran %d times, tightened %d lower and %d upper bounds, sep time: %g\n", nRuns_, nTiL_, nTiU_, cpuTime_);
+    printf ("%g,%d,-1,-1,-1,-1,-1,", cpuTime_, nRuns_);
     return 0;
   }
 
