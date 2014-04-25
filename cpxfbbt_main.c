@@ -13,6 +13,12 @@
 #include "cplex.h"
 #include "cmdline.h"
 
+struct option_s {
+
+  int frequency;
+  int maxDepth;
+};
+
 int fixpointfbbt (CPXCENVptr env,
 		  void *cbdata,
 		  int wherefrom,
@@ -31,10 +37,17 @@ int main (int argc, char **argv) {
     addcuts = 0,
     ifHelp  = 0;
 
-  tpar options [] = {{ 'f',  CSTR() "fixpt",      0, &addcuts,    TTOGGLE, CSTR() "add fixpoint FBBT (default: off)"}
-		     ,{'t',  CSTR() "maxtime",   -1, &maxTime,    TDOUBLE, CSTR() "Maximum CPU time (default: no limit)"}
-		     ,{'h',  CSTR() "help",       0, &ifHelp,     TTOGGLE, CSTR() "Print this help and exit"}
-		     ,{0,    CSTR() "",           0, NULL,        TTOGGLE, CSTR() ""} // THIS ENTRY ALWAYS AT THE END
+  int presolve;
+
+  struct option_s opt;
+
+  tpar options [] = {{ 'f',  CSTR() "fixpt",      0, &addcuts,       TTOGGLE, CSTR() "add fixpoint FBBT (default: off)"}
+		     ,{'p',  CSTR() "presolve",   1, &presolve,      TINT,    CSTR() "Use Cplex's presolve (FBBT): 0 is off, 1 is default, 2 is aggressive -- default: 1"}
+		     ,{'t',  CSTR() "maxtime",   -1, &maxTime,       TDOUBLE, CSTR() "Maximum CPU time (default: no limit)"}
+		     ,{'d',  CSTR() "maxdepth",  -1, &opt.maxDepth,  TINT,    CSTR() "Maximum BB depth for applying procedure (default: no limit)"}
+		     ,{'q',  CSTR() "frequency",  1, &opt.frequency, TINT,    CSTR() "Frequency of calls (default: every node if active); negative means stop if first call ineffective"}
+		     ,{'h',  CSTR() "help",       0, &ifHelp,        TTOGGLE, CSTR() "Print this help and exit"}
+		     ,{0,    CSTR() "",           0, NULL,           TTOGGLE, CSTR() ""} // THIS ENTRY ALWAYS AT THE END
   };
 
   char **filenames;
@@ -64,7 +77,7 @@ int main (int argc, char **argv) {
     status = CPXsetdblparam (env, CPX_PARAM_TILIM,  maxTime);
 
   status = CPXsetintparam (env, CPX_PARAM_SCRIND, CPX_ON);
-  status = CPXsetintparam (env, CPX_PARAM_PREIND, CPX_OFF); // turn off presolve. TODO: restore presolve
+  //status = CPXsetintparam (env, CPX_PARAM_PREIND, CPX_OFF); // turn off presolve. TODO: restore presolve
 
   CPXLPptr mip = CPXcreateprob (env, &status, "cpx+fbbt");
 
@@ -79,7 +92,7 @@ int main (int argc, char **argv) {
   status = CPXreadcopyprob (env, mip, *filenames, NULL); /* Read MIP from file */
 
   if (addcuts)
-    status = CPXsetusercutcallbackfunc (env, fixpointfbbt, NULL);
+    status = CPXsetusercutcallbackfunc (env, fixpointfbbt, &opt);
   
   /*
     status = CPXsetintparam (env, CPX_PARAM_MIPCBREDLP,
@@ -90,6 +103,15 @@ int main (int argc, char **argv) {
     CPX_MIPSEARCH_TRADITIONAL); Turn on traditional search for use
     with control callbacks
   */
+
+  if (presolve &&
+
+      (CPXsetintparam (env, CPX_PARAM_IMPLBD,   (presolve == 1) ?  0 : 2) || /* 0: let Cpx choose, 2: aggressive */
+       CPXsetintparam (env, CPX_PARAM_PRESLVND, (presolve == 1) ?  0 : 2) || /* 2: force, 3: force plus probing, 0: let Cplex choose */
+       CPXsetintparam (env, CPX_PARAM_PREPASS,  (presolve == 1) ? -1 : 5) || /* presolve passes: -1: auto, 5 */
+       CPXsetintparam (env, CPX_PARAM_PREIND,                      1)))
+
+    printf ("Warning: could not tell Cplex to use presolver");
 
   status = CPXmipopt (env, mip); /* Optimize the problem and obtain solution */
 

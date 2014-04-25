@@ -9,6 +9,8 @@
 #include <sys/time.h>
 #include "cplex.h"
 
+#include "cmdline.h"
+
 //#define DEBUG
 
 #define true  1
@@ -18,6 +20,12 @@
 #define COUENNE_EPS 1e-5
 #define DBL_MAX 1e50
 #define COUENNE_INFINITY 1e50
+
+struct option_s {
+
+  int frequency;
+  int maxDepth;
+};
 
 extern void createRow (int sign,
 		       int indexVar,
@@ -80,6 +88,8 @@ int fixpointfbbt (CPXCENVptr env,
 
   static double cpuTime_ = 0.;
 
+  struct option_s *options = (struct option_s *) cbdata;
+
   {
     struct timeval tv;
     gettimeofday (&tv, NULL);
@@ -102,7 +112,10 @@ int fixpointfbbt (CPXCENVptr env,
 				   CPX_CALLBACK_INFO_NODE_DEPTH,
 				   &depth);
 
-  if (depth > MAX_DEPTH) return 0;
+  if (((options -> maxDepth >= 0) && (depth > options -> maxDepth)) ||
+      !options -> frequency ||
+      (nRuns_ % options -> frequency))
+    return 0;
 
   *useraction_p = CPX_CALLBACK_DEFAULT;
 
@@ -389,6 +402,12 @@ int fixpointfbbt (CPXCENVptr env,
     free (newLB);
 
   } else printf ("FPLP infeasible or unbounded.\n");
+
+  if ((options -> frequency < 0) && 
+      (0 == nTiL_ + nTiU_) &&
+      (nRuns_ == 1)) // first call is unsuccessful and we have a negative frequency, just stop this
+
+    options -> frequency = 0;
 
   CPXfreeprob (env, &fplp);
 
