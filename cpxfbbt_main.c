@@ -170,7 +170,7 @@ int main (int argc, char **argv) {
       exit (-1);
     }
 
-    printf ("Stats: root,0.%d,%s,%d,%d,%d,-1,-1,-1,-1,%g,-1,%g,%g,%d,-1,-1,-1,-1,-1,-1,-1,", 
+    printf ("Stats: full,0.%d,%s,%d,%d,%d,-1,-1,-1,-1,%g,-1,%g,%g,%d,-1,-1,-1,-1,-1,-1,-1,",
 	    addcuts,
 	    *filenames,
 	    CPXgetnumcols (env, mip),
